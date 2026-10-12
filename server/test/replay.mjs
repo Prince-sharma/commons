@@ -13,7 +13,8 @@ const post = (path, body, headers = {}) =>
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const sid = crypto.randomUUID(), pid = crypto.randomUUID();
-const swap = (o) => JSON.parse(JSON.stringify(o).replaceAll("7d1c2e9a-4b3f-4f8e-9a51-0c2d6b8e4f10", sid).replaceAll("84606435-3611-4ef6-b413-028b4e0f06fa", pid));
+const run = crypto.randomUUID().slice(0, 8);
+const swap = (o) => JSON.parse(JSON.stringify(o).replaceAll("7d1c2e9a-4b3f-4f8e-9a51-0c2d6b8e4f10", sid).replaceAll("84606435-3611-4ef6-b413-028b4e0f06fa", pid).replace(/toolu_EXAMPLE\w*/g, (m) => `${m}_${run}`));
 
 // 1. Anonymous hooks (public plugin): stored, but unattributed.
 for (const f of ["01-hook-UserPromptSubmit.json", "02-hook-PostToolUse-Skill.json", "03-hook-PostToolUse-Write.json", "04-hook-Stop.json"]) {
@@ -21,7 +22,7 @@ for (const f of ["01-hook-UserPromptSubmit.json", "02-hook-PostToolUse-Skill.jso
   assert.equal(r.status, 204, f);
   assert.equal(await r.text(), "", "hook responses must be empty");
 }
-await wait(800);
+await wait(2500);
 let [s] = await sql`select * from sessions where id = ${sid}`;
 assert.ok(s, "session created from hooks");
 assert.equal(s.org_id, null, "anonymous hooks don't pick an org");
@@ -32,7 +33,7 @@ assert.equal((await post("/v1/logs", fx("05-otlp-logs-claude-code.json"))).statu
 // 3. Monitoring export claims the session for the org and adds identity + cost.
 const r = await post("/v1/logs", swap(fx("05-otlp-logs-claude-code.json")), { authorization: `Bearer ${TOKEN}` });
 assert.equal(r.status, 200);
-await wait(800);
+await wait(2500);
 [s] = await sql`select * from sessions where id = ${sid}`;
 assert.ok(s.org_id, "session claimed by org");
 assert.equal(s.email, "meera.iyer@acme.example");
@@ -69,7 +70,7 @@ const cowork = { resourceLogs: [{ resource: { attributes: [attr("service.name", 
 ] }] }] };
 assert.equal((await post("/v1/logs", cowork, { authorization: `Bearer ${TOKEN}` })).status, 200);
 await post("/v1/logs", cowork, { authorization: `Bearer ${TOKEN}` }); // exporter retry: must not double count
-await wait(800);
+await wait(2500);
 const [s2] = await sql`select * from sessions where id = ${sid2}`;
 assert.equal(s2.surface, "cowork");
 assert.equal(s2.email, "ravi@acme.example");
