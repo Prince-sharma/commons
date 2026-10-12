@@ -1,0 +1,10 @@
+{
+  "session_id": "7d1c2e9a-4b3f-4f8e-9a51-0c2d6b8e4f10",
+  "transcript_path": "/Users/meera/.claude/projects/-Users-meera-Work/7d1c2e9a-4b3f-4f8e-9a51-0c2d6b8e4f10.jsonl",
+  "cwd": "/Users/meera/Work",
+  "scratchpad_dir": "/tmp/claude-501/scratchpad",
+  "prompt_id": "84606435-3611-4ef6-b413-028b4e0f06fa",
+  "permission_mode": "bypassPermissions",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "Use the word-count skill to count the words in: 'the quick brown fox'. Then write the result to a file called out.txt."
+}

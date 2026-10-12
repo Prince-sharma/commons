@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* A quiet neutral console: only data carries colour (one blue family); status colours are reserved. */
+:root {
+  --page: #fafafa;
+  --card: #ffffff;
+  --ink: #18181b;
+  --muted: #71717a;
+  --line: #e4e4e7;
+  --soft: #f4f4f5;
+  --data: #2a78d6;
+  --data-wash: rgba(42, 120, 214, 0.12);
+  --lvl1: #9ec5f4;
+  --lvl2: #3987e5;
+  --lvl3: #1c5cab;
+  --good: #0a7d0a;
+  --warn: #b45309;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #09090b;
+    --card: #111113;
+    --ink: #f4f4f5;
+    --muted: #a1a1aa;
+    --line: #27272a;
+    --soft: #1c1c1f;
+    --data: #5b9bea;
+    --data-wash: rgba(91, 155, 234, 0.16);
+    --lvl1: #1f4f8a;
+    --lvl2: #3987e5;
+    --lvl3: #9ec5f4;
+    --good: #4ade80;
+    --warn: #fbbf24;
+  }
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-soft: var(--soft);
+  --color-data: var(--data);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+}

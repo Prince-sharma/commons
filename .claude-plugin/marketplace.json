@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "commons",
+  "owner": { "name": "Commons" },
+  "metadata": { "description": "Commons: see how your organization uses Claude, and share the skills that work." },
+  "plugins": [
+    {
+      "name": "commons",
+      "source": "./plugins/commons",
+      "description": "Adoption analytics for Claude Cowork and Claude Code. Sends usage events to your Commons server and adds /commons:my-usage and /commons:share-skill."
+    }
+  ]
+}

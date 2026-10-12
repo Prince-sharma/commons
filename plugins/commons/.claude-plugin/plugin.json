@@ -1,0 +1,19 @@
+{
+  "name": "commons",
+  "displayName": "Commons",
+  "version": "0.1.0",
+  "description": "Shares how your organization uses Claude with its Commons dashboard: prompts, the skills and connectors used, and the file types created. Adds /commons:my-usage and /commons:share-skill.",
+  "author": {
+    "name": "Commons"
+  },
+  "homepage": "https://github.com/Prince-sharma/commons",
+  "repository": "https://github.com/Prince-sharma/commons",
+  "license": "MIT",
+  "keywords": [
+    "analytics",
+    "adoption",
+    "cowork",
+    "skills",
+    "telemetry"
+  ]
+}
