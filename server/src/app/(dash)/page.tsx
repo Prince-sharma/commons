@@ -29,7 +29,7 @@ export default async function Analytics() {
   return (
     <div className="space-y-5">
       <p className="text-[13px] text-muted">
-        Last 30 days · {surfaces || "no surface reported yet"}
+        Last 30 days{surfaces ? ` · ${surfaces}` : ""}
         {anon ? " · anonymous (no monitoring export)" : o.unattributed > 0 && ` · ${o.unattributed} sessions not yet linked to a person`}
       </p>
 
@@ -63,7 +63,7 @@ export default async function Analytics() {
                 <li key={c.category}>
                   <div className="mb-1 flex justify-between text-[13px]">
                     <span>{c.category}</span>
-                    <span className="text-muted tabular-nums">{c.sessions} sessions · {c.people} people · {pct(c.skill_share)} with a skill</span>
+                    <span className="text-muted tabular-nums">{c.sessions} sessions{anon ? "" : ` · ${c.people} people`} · {pct(c.skill_share)} with a skill</span>
                   </div>
                   <Meter value={c.sessions} max={cats[0].sessions} />
                 </li>
@@ -99,14 +99,14 @@ export default async function Analytics() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-[13px]">
               <thead className="text-left text-muted">
-                <tr><th className="pb-1.5 font-medium">Task</th><th className="font-medium">Category</th><th className="font-medium">People</th><th className="font-medium">Sessions</th><th className="font-medium">Prompts / session</th><th className="font-medium">Skill used</th></tr>
+                <tr><th className="pb-1.5 font-medium">Task</th><th className="font-medium">Category</th>{!anon && <th className="font-medium">People</th>}<th className="font-medium">Sessions</th><th className="font-medium">Prompts / session</th><th className="font-medium">Skill used</th></tr>
               </thead>
               <tbody>
                 {tasks.slice(0, 25).map((t) => (
                   <tr key={t.id} className="border-t border-line">
                     <td className="py-1.5 pr-3">{t.label}</td>
                     <td className="text-muted">{t.category}</td>
-                    <td className="tabular-nums">{t.people}</td>
+                    {!anon && <td className="tabular-nums">{t.people}</td>}
                     <td className="tabular-nums">{t.sessions}</td>
                     <td className="tabular-nums">{t.prompts_per_session >= 6 ? <Badge tone="warn">{t.prompts_per_session}</Badge> : t.prompts_per_session}</td>
                     <td>{t.top_skill ? `${t.top_skill} (${pct(t.top_skill_share)})` : <Link href="/skills#suggested" className="text-muted underline">No skill</Link>}</td>
@@ -122,10 +122,10 @@ export default async function Analytics() {
 }
 
 function WeeklyChart({ weeks, seats }: { weeks: { week: Date; people: number }[]; seats: number | null }) {
-  const W = 520, H = 160, pad = 24;
+  const W = 520, H = 170, pad = 24;
   const max = Math.max(1, seats ?? 0, ...weeks.map((w) => w.people));
   const bw = (W - pad) / weeks.length;
-  const y = (v: number) => H - pad - (v / max) * (H - pad - 8);
+  const y = (v: number) => H - pad - (v / max) * (H - pad - 18);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Weekly active people, last 8 weeks">
       {weeks.map((w, i) => (
