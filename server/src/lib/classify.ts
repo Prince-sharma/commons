@@ -28,16 +28,22 @@ export async function classifyPending(limit = 40) {
     where s.org_id is not null and s.classified_at is null
       and (select min(ts) from prompts p where p.session_id = s.id) < now() - interval '60 seconds'
     order by s.first_at limit ${limit}`;
-  const queue = [...pending];
+  // One org's sessions go one at a time, so each sees the tasks the previous one created and reuses
+  // them instead of inventing near-duplicates. Different orgs run in parallel.
+  const byOrg = new Map<string, Pending[]>();
+  for (const s of pending) byOrg.set(s.org_id, [...(byOrg.get(s.org_id) ?? []), s]);
+  const queues = [...byOrg.values()];
   const touched = new Set<string>();
   await Promise.all(
-    Array.from({ length: CONCURRENCY }, async () => {
-      for (let s = queue.shift(); s; s = queue.shift()) {
-        try {
-          await classifySession(s);
-          touched.add(s.org_id);
-        } catch (err) {
-          console.error("classify failed", s.id, err);
+    Array.from({ length: Math.min(CONCURRENCY, queues.length) }, async () => {
+      for (let q = queues.shift(); q; q = queues.shift()) {
+        for (const s of q) {
+          try {
+            await classifySession(s);
+            touched.add(s.org_id);
+          } catch (err) {
+            console.error("classify failed", s.id, err);
+          }
         }
       }
     }),
@@ -51,14 +57,16 @@ export async function classifyPending(limit = 40) {
 
 async function classifySession({ id, org_id }: Pending) {
   const prompts = await sql<{ text: string | null }[]>`
-    select text from prompts where session_id = ${id} and text is not null order by ts limit 3`;
+    select text from prompts where session_id = ${id} and text is not null
+      and coalesce(regexp_replace(slash_skill, '^.*:', ''), '') not in ('my-usage', 'share-skill') order by ts limit 3`;
   const tools = await sql<{ skill_key: string | null; mcp_server: string | null; file_ext: string | null }[]>`
     select distinct skill_key, mcp_server, file_ext from tool_events where session_id = ${id}`;
   const skills = [...new Set(tools.map((t) => t.skill_key).filter(Boolean))];
   const connectors = [...new Set(tools.map((t) => t.mcp_server).filter(Boolean))];
   const files = [...new Set(tools.map((t) => t.file_ext).filter(Boolean))];
 
-  if (!prompts.length && !tools.length) {
+  // Nothing but Commons' own commands: not work worth labelling.
+  if (!prompts.length) {
     await sql`update sessions set classified_at = now() where id = ${id}`;
     return;
   }
@@ -93,8 +101,8 @@ async function classifySession({ id, org_id }: Pending) {
           session,
           "",
           "Return:",
-          `- category: reuse an existing category if one reasonably fits. Otherwise create a broad area of work in 2-4 words (e.g. "Sales & customer work", "Code & automation"). The company should end up with at most ${MAX_CATEGORIES} categories.`,
-          "- task: reuse an existing task label if this is the same recurring job. Otherwise a new verb phrase of at most 8 words describing the job, e.g. \"Draft follow-up emails after sales calls\".",
+          `- category: the kind of work, by function, not the company's industry (every session is from the same company, so "Insurance" or "Banking" alone is useless). Reuse an existing category if one reasonably fits; otherwise create one in 2-4 words, e.g. "Client communication", "Claims handling", "Data & reporting", "Code & automation". The company should end up with 5-${MAX_CATEGORIES} categories.`,
+          "- task: the recurring job, at the level a manager would write a skill for. Sessions doing the same job for different clients, people, amounts or reasons are the SAME task: reuse the existing label. Only create a new verb phrase (at most 8 words, no specifics) if no existing task is the same job, e.g. \"Draft follow-up emails after sales calls\".",
           "- summary: what this session did, at most 12 words.",
         ].join("\n"),
       },
