@@ -8,34 +8,42 @@ export default async function Settings() {
   const org = await requireOrg();
   const h = await headers();
   const base = process.env.COMMONS_URL ?? `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
-  const repo = process.env.COMMONS_PLUGIN_REPO ?? "Prince-sharma/commons";
+  const host = new URL(base).host;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
       <div className="space-y-5">
-        <Card title="Optional · Point Claude's monitoring at Commons" sub="Claude admin settings › Cowork › Monitoring (Owner, Team and Enterprise). Skip it to stay anonymous: Commons then counts skills and tasks but not people, tokens or cost.">
+        <Card title="Step 1 · Download your plugin" sub="Commons comes as a plugin with your org token built in. It sends no names or emails.">
+          <form method="post" action="/api/plugin" className="flex flex-wrap items-end gap-2">
+            <label className="block min-w-64 flex-1">
+              <span className="mb-1 block text-[13px] font-medium">Org token</span>
+              <Input name="token" type="password" placeholder="cmn_…" required />
+            </label>
+            <Button>Download plugin (.zip)</Button>
+          </form>
+          <p className="mt-2 text-[13px] text-muted">Use the token from your setup email, or create a new one on the right (older plugin files then stop working). Keep the file inside your organization.</p>
+        </Card>
+
+        <Card title="Step 2 · Add it for everyone" sub="Claude organization settings (Owner). On a personal plan, the same screens are under Settings.">
+          <ol className="list-decimal space-y-1.5 pl-5 text-[13px]">
+            <li><b>Plugins › Add › Upload plugin</b>, then choose the .zip. On Team and Enterprise, set its default access to <b>Required</b> so everyone gets it.</li>
+            <li><b>Capabilities › Network egress</b>: allow <code className="font-mono">{host}</code>. Cowork blocks unknown sites, and the plugin can&apos;t reach Commons without this.</li>
+          </ol>
+        </Card>
+
+        <Card title="Step 3 · Check it works" sub="Start a new Cowork session, run one task, then open Live events.">
+          <p className="text-[13px]">Plugin events should appear within seconds, and the session gets a category and task a minute or two later. Nothing arriving usually means the network egress step is missing.</p>
+        </Card>
+
+        <Card title="Optional · Claude's monitoring export" sub="Team and Enterprise: Admin settings › Cowork › Monitoring. Adds who did what, tokens and cost. Skip it to keep Commons anonymous.">
           <div className="space-y-2 text-[13px]">
             <Row k="OTLP endpoint" v={base} />
             <Row k="OTLP protocol" v="http/json" />
             <Row k="OTLP headers" v="Authorization=Bearer <your org token>" />
-            <p className="text-muted">Use the org token from your setup email, or create a new one on the right. Settings apply to <b>new</b> Cowork sessions.</p>
           </div>
         </Card>
 
-        <Card title="Add the Commons plugin for everyone" sub="Claude organization settings › Plugins & skills (Owner). No GitHub sync, or skipping monitoring? Upload a plugin file with your org token built in instead (Add › Upload plugin); ask us for it.">
-          <ol className="list-decimal space-y-1.5 pl-5 text-[13px]">
-            <li><b>Add › Sync from GitHub</b>, then pick <code className="font-mono">{repo}</code> (public). Leave <b>Sync automatically</b> on.</li>
-            <li>On the <b>Inventory</b> tab, open the <code className="font-mono">commons</code> row › <b>Default access</b> › <b>Required</b>.</li>
-            <li>If your org restricts network egress, add <code className="font-mono">{new URL(base).host}</code> under Organization settings › Capabilities › Network egress.</li>
-          </ol>
-          <p className="mt-2 text-[13px] text-muted">The plugin adds skill and connector names, file types, <code className="font-mono">/commons:my-usage</code> and <code className="font-mono">/commons:share-skill</code>. It carries no secrets.</p>
-        </Card>
-
-        <Card title="Check it works" sub="Start a new Cowork session, run one task that uses a skill, then open Live events.">
-          <p className="text-[13px]">You should see <b>monitoring</b> and <b>plugin</b> events within a minute, and &quot;Plugin sessions matched to a person&quot; above zero. If plugin events arrive but never match, tell us: we switch your org to a plugin copy with your token built in.</p>
-        </Card>
-
-        <Card title="Optional · Claude Code users" sub="Admin settings › Claude Code › Managed settings. Developers get the plugin through account sync once it is Required.">
+        <Card title="Optional · Claude Code monitoring" sub="Admin settings › Claude Code › Managed settings. Only needed if you also want people, tokens and cost for Claude Code.">
           <Code>{JSON.stringify({
             env: {
               CLAUDE_CODE_ENABLE_TELEMETRY: "1",
@@ -64,7 +72,7 @@ export default async function Settings() {
             <Button variant="outline">Save</Button>
           </form>
         </Card>
-        <Card title="Org token" sub="Used only to send data to Commons. It can't read anything.">
+        <Card title="Org token" sub="Built into your plugin file. It can only send data to Commons, not read it.">
           <RotateToken action={rotateToken} />
         </Card>
         <Card title="Dashboard password">
@@ -74,7 +82,7 @@ export default async function Settings() {
           <ul className="list-disc space-y-1 pl-4 text-[12px] text-muted">
             <li>Prompt text, for labelling; deleted after 30 days</li>
             <li>Skill, connector and tool names; file extensions</li>
-            <li>Email, tokens, cost and model from the monitoring export</li>
+            <li>No names or emails, unless you turn on the monitoring export</li>
             <li>Never: file contents or paths, Claude&apos;s replies, tool outputs</li>
           </ul>
         </Card>

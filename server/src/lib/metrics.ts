@@ -5,7 +5,7 @@ import { sql } from "./db";
 
 export async function overview(orgId: string) {
   const [t] = await sql<{
-    people: number; sessions: number; skill_sessions: number; files: number; cost: number; unattributed: number;
+    people: number; sessions: number; skill_sessions: number; files: number; cost: number; unattributed: number; prompts: number;
     cowork: number; code: number;
   }[]>`
     with s as (select * from sessions where org_id = ${orgId} and first_at > now() - interval '30 days')
@@ -13,6 +13,7 @@ export async function overview(orgId: string) {
            count(*)::int as sessions,
            count(*) filter (where exists (select 1 from tool_events t where t.session_id = s.id and t.skill_key is not null and t.skill_key <> 'share-skill'))::int as skill_sessions,
            (select count(distinct (t.prompt_id, t.file_ext))::int from tool_events t join s on s.id = t.session_id where t.file_ext is not null) as files,
+           (select count(*)::int from prompts p join s on s.id = p.session_id) as prompts,
            coalesce(sum(cost_usd), 0)::float as cost,
            count(*) filter (where email is null)::int as unattributed,
            count(*) filter (where surface = 'cowork')::int as cowork,

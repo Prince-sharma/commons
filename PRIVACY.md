@@ -8,7 +8,7 @@ hosted Commons service on your organization's behalf. Only your organization's a
 **What reaches the server.**
 - From the Commons plugin (Cowork and Claude Code): your prompts; the names of skills, connectors and tools Claude
   used; the files Claude created or edited (the server keeps only the extension, such as `.docx`); when a turn ended.
-- From Claude's monitoring export (configured by your admin): your email, the session, tokens, model and estimated
+- Only if your admin turns on Claude's monitoring export (optional): your email, the session, tokens, model and estimated
   cost. Depending on your admin's settings it may also include Claude's replies, tool inputs and folder paths. Commons
   discards these on arrival.
 

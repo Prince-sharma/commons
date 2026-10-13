@@ -11,7 +11,7 @@ Your admin installed this plugin; it sends usage events to your organization's C
 | `PostToolUse` / `PostToolUseFailure` (skills, connectors, file edits) | the tool call | the skill or connector name and the file **extension** only. File contents and paths are dropped on arrival |
 | `Stop` | that Claude finished a turn | the timestamp |
 
-Your name and email come from Claude's monitoring export, which your admin configures.
+No name or email is sent. Only if your admin turns on Claude's monitoring export does Commons see who ran a session.
 Claude's replies, file contents, file paths and tool outputs are never stored.
 
 ## What it adds

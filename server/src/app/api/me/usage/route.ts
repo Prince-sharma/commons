@@ -1,17 +1,16 @@
 import { sql } from "@/lib/db";
 
 // Used by /commons:my-usage. The caller passes its Claude session id (an unguessable UUID); we answer
-// for the person the monitoring stream tied that session to. Plain text, so the skill can show it as is.
+// for the person the monitoring stream tied that session to, or, when Commons runs anonymously,
+// with what the whole organization uses. Plain text, so the skill can show it as is.
 export async function GET(req: Request) {
   const sid = new URL(req.url).searchParams.get("session")?.slice(0, 100);
   if (!sid) return text("Missing ?session=<CLAUDE_SESSION_ID>.", 400);
   const [s] = await sql<{ org_id: string | null; email: string | null }[]>`select org_id, email from sessions where id = ${sid}`;
-  if (!s?.org_id || !s.email) {
-    return text(
-      "Commons hasn't linked this session to you yet. Your admin needs Claude's monitoring export pointed at Commons " +
-        "(Admin settings › Cowork › Monitoring). Links usually appear within a minute of your first prompt in a new session.",
-    );
+  if (!s?.org_id) {
+    return text("Commons hasn't seen this session yet. Check that your admin allowed network access to Commons, then try again after your next prompt.");
   }
+  if (!s.email) return text(await orgView(s.org_id));
   const [me] = await sql<{ sessions: number; prompts: number; skill_sessions: number; cost: number }[]>`
     select count(distinct s.id)::int as sessions,
            (select count(*)::int from prompts p join sessions x on x.id = p.session_id
@@ -45,6 +44,28 @@ export async function GET(req: Request) {
     popular.length ? `Colleagues also use: ${popular.map((p) => `${p.skill_key} (${p.people} people)`).join(", ")}` : null,
   ];
   return text(lines.filter(Boolean).join("\n"));
+}
+
+async function orgView(orgId: string) {
+  const skills = await sql<{ skill_key: string; runs: number }[]>`
+    select t.skill_key, count(distinct (t.prompt_id, t.skill_key))::int as runs
+    from tool_events t join sessions s on s.id = t.session_id
+    where s.org_id = ${orgId} and t.ts > now() - interval '30 days' and t.skill_key is not null and t.skill_key <> 'share-skill'
+    group by 1 order by 2 desc limit 8`;
+  const cats = await sql<{ category: string; n: number }[]>`
+    select category, count(*)::int as n from sessions
+    where org_id = ${orgId} and first_at > now() - interval '30 days' and category is not null
+    group by 1 order by 2 desc limit 5`;
+  const tasks = await sql<{ label: string; n: number }[]>`
+    select k.label, count(*)::int as n from sessions s join tasks k on k.id = s.task_id
+    where s.org_id = ${orgId} and s.first_at > now() - interval '30 days'
+    group by 1 order by 2 desc limit 5`;
+  return [
+    "How your organization uses Claude, last 30 days",
+    `- Most-used skills: ${skills.map((k) => `${k.skill_key} (${k.runs} runs)`).join(", ") || "none yet"}`,
+    `- Main kinds of work: ${cats.map((c) => `${c.category} (${c.n})`).join(", ") || "not labelled yet"}`,
+    `- Most common tasks: ${tasks.map((t) => `${t.label} (${t.n})`).join("; ") || "not labelled yet"}`,
+  ].join("\n");
 }
 
 function text(body: string, status = 200) {

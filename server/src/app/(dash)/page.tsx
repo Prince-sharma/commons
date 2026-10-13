@@ -24,29 +24,34 @@ export default async function Analytics() {
     );
   }
 
+  const anon = o.people === 0; // no monitoring export: nothing ties sessions to people
   const surfaces = [o.cowork && `Cowork ${o.cowork}`, o.code && `Claude Code ${o.code}`].filter(Boolean).join(" · ");
   return (
     <div className="space-y-5">
       <p className="text-[13px] text-muted">
         Last 30 days · {surfaces || "no surface reported yet"}
-        {o.unattributed > 0 && ` · ${o.unattributed} sessions not yet linked to a person`}
+        {anon ? " · anonymous (no monitoring export)" : o.unattributed > 0 && ` · ${o.unattributed} sessions not yet linked to a person`}
       </p>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat label="Active people" value={o.people} sub={org.seats ? `of ${org.seats} seats` : "set seats in Settings"} />
+        {anon
+          ? <Stat label="Prompts" value={o.prompts} sub="across all sessions" />
+          : <Stat label="Active people" value={o.people} sub={org.seats ? `of ${org.seats} seats` : "set seats in Settings"} />}
         <Stat label="Sessions" value={o.sessions} />
         <Stat label="Sessions using a skill" value={pct(o.sessions ? o.skill_sessions / o.sessions : 0)} sub={`${o.skill_sessions} sessions`} />
         <Stat label="Files created" value={o.files} sub={files.slice(0, 3).map((f) => `.${f.file_ext} ${f.n}`).join(" · ") || undefined} />
-        <Stat label="Estimated model cost" value={`$${o.cost.toFixed(2)}`} sub="from Claude's monitoring export" />
+        {anon
+          ? <Stat label="Connectors used" value={conns.length} sub={conns.slice(0, 2).map((c) => c.mcp_server).join(" · ") || undefined} />
+          : <Stat label="Estimated model cost" value={`$${o.cost.toFixed(2)}`} sub="from Claude's monitoring export" />}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card title="Weekly active people" sub={org.seats ? `Dashed line: ${org.seats} seats` : "Last 8 weeks"}>
-          <WeeklyChart weeks={weeks} seats={org.seats} />
+        <Card title={anon ? "Weekly sessions" : "Weekly active people"} sub={!anon && org.seats ? `Dashed line: ${org.seats} seats` : "Last 8 weeks"}>
+          <WeeklyChart weeks={anon ? weeks.map((w) => ({ ...w, people: w.sessions })) : weeks} seats={anon ? null : org.seats} />
         </Card>
 
         <Card title="How people use Claude" sub="Per person, last 30 days">
-          <Levels levels={levels} />
+          {anon ? <Empty>Per-person levels need the optional monitoring export (Settings). Commons is running anonymously.</Empty> : <Levels levels={levels} />}
         </Card>
       </div>
 

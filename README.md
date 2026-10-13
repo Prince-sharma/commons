@@ -2,16 +2,17 @@
 
 **See how your organization uses Claude, and share the skills that work.**
 
-Commons is an open-source Claude plugin plus a small server. Once an admin sets it up, every Cowork and Claude Code
-session reports what kind of work was done, which skills and connectors ran, and what it cost. You get:
+Commons is an open-source Claude plugin plus a small server. Once an admin adds the plugin, every Cowork and Claude
+Code session reports what kind of work was done and which skills and connectors ran. It is **anonymous by default**:
+no names or emails are collected. You get:
 
-- **Analytics:** active people vs seats, how deeply people use Claude (light / regular / advanced), what they use it
-  for (categories learned from your own usage), top skills, and recurring tasks.
+- **Analytics:** what people use Claude for (categories learned from your own usage), top skills and connectors,
+  recurring tasks, and file types created.
 - **Skills:** every skill in use ranked by real runs; suggested new skills for recurring work that nobody has a
   skill for yet (drafted for you); and skills employees share with `/commons:share-skill`.
-- **In Claude:** `/commons:my-usage` shows each person their last 7 days and the skills colleagues use.
+- **In Claude:** `/commons:my-usage` shows the skills colleagues use.
 
-Employees install nothing. An admin does two things in Claude's settings.
+Employees install nothing. An admin uploads one plugin file.
 
 ## How it works
 
@@ -19,32 +20,29 @@ Employees install nothing. An admin does two things in Claude's settings.
  Claude (Cowork / Claude Code)                                        Commons server
  ┌──────────────────────────────────────────┐   POST /api/hooks      ┌───────────────────────────────┐
  │ commons plugin (Required for everyone)   │ ─────────────────────► │ sessions, prompts, tool events│
- │   http hooks: prompt, tool use, turn end │   (no secrets)         │                               │
+ │   http hooks: prompt, tool use, turn end │   Bearer <org token>   │                               │
  │   /commons:my-usage, /commons:share-skill│                        │ Sarvam labels each session:   │
- │                                          │   POST /v1/logs        │   category · task · summary   │
- │ Claude monitoring export (admin setting) │ ─────────────────────► │                               │
- │   user email, tokens, cost, tool calls   │   Bearer <org token>   │ Dashboard: Analytics · Skills │
+ │                                          │                        │   category · task · summary   │
+ │ optional: Claude monitoring export       │ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─► │                               │
+ │   adds people, tokens, cost              │   POST /v1/logs        │ Dashboard: Analytics · Skills │
  └──────────────────────────────────────────┘                        └───────────────────────────────┘
 ```
 
-The plugin is identical for every organization and carries no secrets. Claude's **monitoring export**, which the
-admin points at Commons with an org token, tells Commons which organization and person each session belongs to,
-plus tokens and cost. Plugin events are matched to that stream by session id. Plugin events that no organization
-ever claims are deleted after 6 hours.
+Each organization's plugin file has its **org token** built in, so its events land in that organization and nowhere
+else. The token can only send events. Turning on Claude's monitoring export (Team and Enterprise) is optional: it adds
+who did what, tokens and cost.
 
 ## Option 1: use the hosted Commons
 
 1. Ask for an account. You receive an **organization ID**, a **dashboard password** and an **org token**.
-2. **Monitoring** (Claude Owner): Admin settings › Cowork › Monitoring:
-   - OTLP endpoint: `https://commons-adoption.vercel.app`
-   - OTLP protocol: `http/json`
-   - OTLP headers: `Authorization=Bearer <org token>`
-3. **Plugin** (Claude Owner): Organization settings › Plugins & skills › **Add › Sync from GitHub** ›
-   `Prince-sharma/commons`. Then on **Inventory**, set `commons` › Default access › **Required**.
-4. Start a **new** Cowork session, run a task, and open **Live events** in the dashboard. You should see
-   monitoring and plugin events within a minute.
+2. Sign in at https://commons-adoption.vercel.app › **Settings** › paste the org token › **Download plugin (.zip)**.
+3. In Claude (Owner; on a personal plan, your own Settings):
+   - **Plugins › Add › Upload plugin** › choose the .zip. On Team and Enterprise, set it to **Required**.
+   - **Capabilities › Network egress** › allow `commons-adoption.vercel.app`. Cowork blocks unknown sites.
+4. Start a **new** Cowork session, run a task, and open **Live events**. Plugin events appear within seconds; the
+   session is labelled a minute or two later.
 
-Claude Code users: add the managed-settings block shown on the dashboard's Settings page.
+Claude Code: install the same plugin, e.g. `claude --plugin-dir <unzipped folder>`.
 
 ## Option 2: self-host
 
@@ -57,20 +55,18 @@ You need a Vercel account (or any Node host), a Postgres database, a Sarvam API 
    - The schema is applied on every build.
 3. Open `https://<your-host>/setup`, sign in with `SUPERADMIN_PASSWORD`, and **create your organization**. Copy the
    organization ID, password and org token.
-4. **Point the plugin at your server**, then commit and push:
-   ```bash
-   node scripts/configure.mjs --url https://<your-host>
-   ```
-5. In Claude, do steps 2–4 of Option 1 with your own host and your fork's repository.
+4. Set `COMMONS_PLUGIN_REPO=<you>/<fork>` on the server, then do steps 2–4 of Option 1 with your own host.
+   Or build the file locally: `node scripts/package.mjs --url https://<your-host> --token cmn_...` writes
+   `dist/commons.zip`.
 
 ## What is collected
 
 | Data | Source | Kept |
 |---|---|---|
-| Prompt text | plugin hook, monitoring export | 30 days, to label the kind of work; labels stay |
-| Skill, connector and tool names | plugin hook, monitoring export | yes |
-| File **extensions** of files Claude created | plugin hook, monitoring export | yes |
-| Email, tokens, model, estimated cost | monitoring export | yes |
+| Prompt text | plugin hook | 30 days, to label the kind of work; labels stay |
+| Skill, connector and tool names | plugin hook | yes |
+| File **extensions** of files Claude created | plugin hook | yes |
+| Email, tokens, model, estimated cost | only if you turn on the monitoring export | yes |
 | Claude's replies, file contents, file paths, tool outputs, folder paths | may be sent by Claude | **dropped on arrival, never stored** |
 
 Prompts are sent to [Sarvam](https://www.sarvam.ai) for labelling. The dashboard shows organization totals,
@@ -82,8 +78,8 @@ See [PRIVACY.md](PRIVACY.md).
 
 | Surface | Covered |
 |---|---|
-| Cowork (Team, Enterprise) | Yes: monitoring + plugin |
-| Claude Code | Yes: plugin via account sync; monitoring via managed settings |
+| Cowork (Pro, Max, Team, Enterprise) | Yes: plugin (+ optional monitoring on Team/Enterprise) |
+| Claude Code | Yes: plugin (+ optional monitoring via managed settings) |
 | claude.ai chat | No: plugins don't run hooks in chat |
 
 ## Repository
@@ -93,7 +89,8 @@ See [PRIVACY.md](PRIVACY.md).
 | `.claude-plugin/marketplace.json` | The marketplace Claude syncs |
 | `plugins/commons/` | The plugin: `hooks/hooks.json`, `skills/my-usage`, `skills/share-skill` |
 | `server/` | Next.js + Postgres server and dashboard ([details](server/README.md)) |
-| `scripts/configure.mjs` | Points the plugin at your server (self-hosting) |
+| `scripts/package.mjs` | Builds an uploadable plugin .zip for one org |
+| `scripts/configure.mjs` | Points the repo's plugin at your server (GitHub sync + monitoring setups) |
 
 ## License
 
