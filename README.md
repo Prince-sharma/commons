@@ -32,6 +32,8 @@ Each organization's plugin file has its **org token** built in, so its events la
 else. The token can only send events. Turning on Claude's monitoring export (Team and Enterprise) is optional: it adds
 who did what, tokens and cost.
 
+**Step-by-step guide for admins:** [docs/SETUP.md](docs/SETUP.md) (one-page PDF: [docs/commons-setup-guide.pdf](docs/commons-setup-guide.pdf)).
+
 ## Option 1: use the hosted Commons
 
 1. Ask for an account. You receive an **organization ID**, a **dashboard password** and an **org token**.
