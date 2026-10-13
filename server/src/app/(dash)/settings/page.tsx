@@ -13,7 +13,7 @@ export default async function Settings() {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
       <div className="space-y-5">
-        <Card title="Step 1 · Point Claude's monitoring at Commons" sub="Claude admin settings › Cowork › Monitoring (Owner). This tells Commons who each session belongs to, and adds tokens and cost.">
+        <Card title="Optional · Point Claude's monitoring at Commons" sub="Claude admin settings › Cowork › Monitoring (Owner, Team and Enterprise). Skip it to stay anonymous: Commons then counts skills and tasks but not people, tokens or cost.">
           <div className="space-y-2 text-[13px]">
             <Row k="OTLP endpoint" v={base} />
             <Row k="OTLP protocol" v="http/json" />
@@ -22,7 +22,7 @@ export default async function Settings() {
           </div>
         </Card>
 
-        <Card title="Step 2 · Add the Commons plugin for everyone" sub="Claude organization settings › Plugins & skills (Owner).">
+        <Card title="Add the Commons plugin for everyone" sub="Claude organization settings › Plugins & skills (Owner). No GitHub sync, or skipping monitoring? Upload a plugin file with your org token built in instead (Add › Upload plugin); ask us for it.">
           <ol className="list-decimal space-y-1.5 pl-5 text-[13px]">
             <li><b>Add › Sync from GitHub</b>, then pick <code className="font-mono">{repo}</code> (public). Leave <b>Sync automatically</b> on.</li>
             <li>On the <b>Inventory</b> tab, open the <code className="font-mono">commons</code> row › <b>Default access</b> › <b>Required</b>.</li>
@@ -31,7 +31,7 @@ export default async function Settings() {
           <p className="mt-2 text-[13px] text-muted">The plugin adds skill and connector names, file types, <code className="font-mono">/commons:my-usage</code> and <code className="font-mono">/commons:share-skill</code>. It carries no secrets.</p>
         </Card>
 
-        <Card title="Step 3 · Check it works" sub="Start a new Cowork session, run one task that uses a skill, then open Live events.">
+        <Card title="Check it works" sub="Start a new Cowork session, run one task that uses a skill, then open Live events.">
           <p className="text-[13px]">You should see <b>monitoring</b> and <b>plugin</b> events within a minute, and &quot;Plugin sessions matched to a person&quot; above zero. If plugin events arrive but never match, tell us: we switch your org to a plugin copy with your token built in.</p>
         </Card>
 

@@ -159,7 +159,8 @@ export async function ingestHook(e: HookEvent, bearerOrgId: string | null) {
   switch (e.hook_event_name) {
     case "UserPromptSubmit": {
       const text = typeof e.prompt === "string" ? e.prompt.slice(0, 20_000) : null;
-      if (e.prompt_id) await upsertPrompt({ id: e.prompt_id, sessionId: sid, ts: now, text });
+      // Fall back to our own id if a surface leaves prompt_id out, so the prompt still gets labelled.
+      await upsertPrompt({ id: e.prompt_id ?? `hook:${sid}:${now.getTime()}`, sessionId: sid, ts: now, text });
       await live(orgId, sid, "hook", "UserPromptSubmit", `${text?.length ?? 0} chars${slashSkill(text) ? ` · /${slashSkill(text)}` : ""}`);
       break;
     }
@@ -167,9 +168,10 @@ export async function ingestHook(e: HookEvent, bearerOrgId: string | null) {
     case "PostToolUseFailure": {
       const tool = e.tool_name ?? "unknown";
       const d = describeTool(tool, e.tool_input);
+      const promptId = e.prompt_id ?? (await latestPrompt(sid));
       await insertTool({
-        dedupKey: e.tool_use_id ? `tool:${e.tool_use_id}` : `hook:${sid}:${e.prompt_id}:${tool}:${now.getTime()}`,
-        sessionId: sid, promptId: e.prompt_id, ts: now, source: "hook", toolName: tool,
+        dedupKey: e.tool_use_id ? `tool:${e.tool_use_id}` : `hook:${sid}:${promptId}:${tool}:${now.getTime()}`,
+        sessionId: sid, promptId, ts: now, source: "hook", toolName: tool,
         invocation: tool === "Skill" ? "model" : null, success: e.hook_event_name === "PostToolUse", ...d,
       });
       await live(orgId, sid, "hook", e.hook_event_name, [tool, d.skillRaw, d.mcpServer, d.fileExt && `.${d.fileExt}`].filter(Boolean).join(" · "));
@@ -181,6 +183,11 @@ export async function ingestHook(e: HookEvent, bearerOrgId: string | null) {
     default:
       await live(orgId, sid, "hook", e.hook_event_name ?? "unknown");
   }
+}
+
+async function latestPrompt(sessionId: string) {
+  const [p] = await sql<{ id: string }[]>`select id from prompts where session_id = ${sessionId} order by ts desc limit 1`;
+  return p?.id ?? null;
 }
 
 // ---------------------------------------------------------------- OTLP logs
