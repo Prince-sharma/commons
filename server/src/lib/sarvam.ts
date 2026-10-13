@@ -1,9 +1,12 @@
 // Minimal Sarvam chat client (OpenAI-compatible /chat/completions).
 // Docs: https://docs.sarvam.ai/api-reference/chat/chat-completions-v2
-// Reasoning is off: classification needs short structured answers, and reasoning tokens count against max_tokens.
+// Default model: DeepSeek V4.1 Flash on the v2 route (beta; the key must be whitelisted). Reasoning is kept low:
+// labels are short, and reasoning tokens count against max_tokens, so reasoning models get extra headroom.
 
-const BASE = process.env.SARVAM_BASE_URL ?? "https://api.sarvam.ai/v1";
-const MODEL = process.env.SARVAM_MODEL ?? "sarvam-105b";
+const BASE = process.env.SARVAM_BASE_URL ?? "https://api.sarvam.ai/v2";
+const MODEL = process.env.SARVAM_MODEL ?? "deepseekv4.1-flash";
+const REASONING = /deepseek|glm/i.test(MODEL);
+const REASONING_HEADROOM = 2000;
 
 type Message = { role: "system" | "user" | "assistant"; content: string };
 
@@ -15,8 +18,11 @@ async function call(body: Record<string, unknown>): Promise<string> {
     const res = await fetch(`${BASE}/chat/completions`, {
       method: "POST",
       headers: { "api-subscription-key": key, "content-type": "application/json" },
-      body: JSON.stringify({ model: MODEL, temperature: 0, reasoning_effort: null, ...body }),
-      signal: AbortSignal.timeout(45_000),
+      body: JSON.stringify({
+        model: MODEL, temperature: 0, reasoning_effort: REASONING ? "low" : null, ...body,
+        max_tokens: (body.max_tokens as number) + (REASONING ? REASONING_HEADROOM : 0),
+      }),
+      signal: AbortSignal.timeout(90_000),
     });
     if (res.status === 429 || res.status >= 500) {
       lastErr = new Error(`Sarvam ${res.status}: ${await res.text()}`);
