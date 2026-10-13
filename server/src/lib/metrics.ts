@@ -11,7 +11,7 @@ export async function overview(orgId: string) {
     with s as (select * from sessions where org_id = ${orgId} and first_at > now() - interval '30 days')
     select count(distinct email)::int as people,
            count(*)::int as sessions,
-           count(*) filter (where exists (select 1 from tool_events t where t.session_id = s.id and t.skill_key is not null and t.skill_key <> 'share-skill'))::int as skill_sessions,
+           count(*) filter (where exists (select 1 from tool_events t where t.session_id = s.id and t.skill_key is not null and t.skill_key not in ('share-skill', 'my-usage')))::int as skill_sessions,
            (select count(distinct (t.prompt_id, t.file_ext))::int from tool_events t join s on s.id = t.session_id where t.file_ext is not null) as files,
            (select count(*)::int from prompts p join s on s.id = p.session_id) as prompts,
            coalesce(sum(cost_usd), 0)::float as cost,
@@ -35,7 +35,7 @@ export async function usageLevels(orgId: string, seats: number | null) {
   const rows = await sql<{ email: string; sessions: number; deep: number; skill_runs: number }[]>`
     select s.email, count(*)::int as sessions,
            count(*) filter (where exists (select 1 from tool_events t where t.session_id = s.id
-                    and ((t.skill_key is not null and t.skill_key <> 'share-skill') or t.mcp_server is not null)))::int as deep,
+                    and ((t.skill_key is not null and t.skill_key not in ('share-skill', 'my-usage')) or t.mcp_server is not null)))::int as deep,
            (select count(distinct (t.prompt_id, t.skill_key))::int from tool_events t join sessions x on x.id = t.session_id
              where x.org_id = ${orgId} and x.email = s.email and t.skill_key is not null and t.ts > now() - interval '30 days') as skill_runs
     from sessions s where s.org_id = ${orgId} and s.email is not null and s.first_at > now() - interval '30 days'
@@ -55,7 +55,7 @@ export async function usageLevels(orgId: string, seats: number | null) {
 export async function categories(orgId: string) {
   return sql<{ category: string; sessions: number; people: number; skill_share: number }[]>`
     select coalesce(category, 'Not labelled yet') as category, count(*)::int as sessions, count(distinct email)::int as people,
-           avg(case when exists (select 1 from tool_events t where t.session_id = s.id and t.skill_key is not null and t.skill_key <> 'share-skill') then 1 else 0 end)::float as skill_share
+           avg(case when exists (select 1 from tool_events t where t.session_id = s.id and t.skill_key is not null and t.skill_key not in ('share-skill', 'my-usage')) then 1 else 0 end)::float as skill_share
     from sessions s where org_id = ${orgId} and first_at > now() - interval '30 days'
     group by 1 order by 2 desc`;
 }
@@ -73,7 +73,7 @@ export async function topSkills(orgId: string, limit = 50) {
                    and t2.session_id in (select id from sessions where org_id = ${orgId})
                  group by w.week order by w.week) as weekly
     from tool_events t join sessions s on s.id = t.session_id
-    where s.org_id = ${orgId} and t.skill_key is not null and t.skill_key <> 'share-skill' and t.ts > now() - interval '30 days'
+    where s.org_id = ${orgId} and t.skill_key is not null and t.skill_key not in ('share-skill', 'my-usage') and t.ts > now() - interval '30 days'
     group by t.skill_key order by runs desc limit ${limit}`;
 }
 
@@ -106,7 +106,7 @@ export async function commonTasks(orgId: string) {
     ), skill as (
       select s.task_id, t.skill_key, count(distinct s.id) as n
       from s join tool_events t on t.session_id = s.id
-      where t.skill_key is not null and t.skill_key <> 'share-skill' group by 1, 2
+      where t.skill_key is not null and t.skill_key not in ('share-skill', 'my-usage') group by 1, 2
     )
     select k.id, k.label, k.category, k.draft_md, k.dismissed,
            count(distinct s.email)::int as people, count(distinct s.id)::int as sessions,
@@ -114,7 +114,7 @@ export async function commonTasks(orgId: string) {
            (select skill_key from skill where skill.task_id = k.id order by n desc limit 1) as top_skill,
            coalesce((select max(n) from skill where skill.task_id = k.id), 0)::float / count(distinct s.id) as top_skill_share,
            (select count(distinct x.id) from s x where x.task_id = k.id and exists
-             (select 1 from tool_events t where t.session_id = x.id and t.skill_key is not null and t.skill_key <> 'share-skill'))::float
+             (select 1 from tool_events t where t.session_id = x.id and t.skill_key is not null and t.skill_key not in ('share-skill', 'my-usage')))::float
              / count(distinct s.id) as skill_share
     from tasks k join s on s.task_id = k.id
     where k.org_id = ${orgId}

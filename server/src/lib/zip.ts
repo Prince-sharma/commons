@@ -14,7 +14,7 @@ export function zip(files: { path: string; data: string }[]) {
     local.writeUInt16LE(20, 4);       // version needed
     local.writeUInt16LE(0x0800, 6);   // UTF-8 names
     local.writeUInt16LE(0, 8);        // stored
-    local.writeUInt32LE(0, 10);       // time/date
+    local.writeUInt16LE(0x21, 12);    // date: 1980-01-01 (0 is invalid in some unzippers)
     local.writeUInt32LE(crc, 14);
     local.writeUInt32LE(data.length, 18);
     local.writeUInt32LE(data.length, 22);
@@ -26,6 +26,7 @@ export function zip(files: { path: string; data: string }[]) {
     central.writeUInt16LE(20, 4);
     central.writeUInt16LE(20, 6);
     central.writeUInt16LE(0x0800, 8);
+    central.writeUInt16LE(0x21, 14);
     central.writeUInt32LE(crc, 16);
     central.writeUInt32LE(data.length, 20);
     central.writeUInt32LE(data.length, 24);
